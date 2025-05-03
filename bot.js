@@ -73,7 +73,7 @@ bot.command('poster', async (ctx) => {
     message += `🎭 <b>Genres:</b> ${genres}\n`;
 
     if (rawLandscapes.length) {
-      message += `\n📥 <b>Available Posters</b>\n🏷 <b>Raw Landscape</b>\n`;
+      message += `\n📥 <b>Available Posters</b>\n\n🏷 <b>Raw Landscape</b>\n`;
       rawLandscapes.forEach((b, i) => {
         message += `${i + 1}. <a href="${base}${b.file_path}">Click Here</a>\n`;
       });
@@ -91,7 +91,7 @@ bot.command('poster', async (ctx) => {
       portraitPosters.forEach((p, i) => {
         message += `${i + 1}. <a href="${base}${p.file_path}">Click Here</a>\n`;
       });
-      message += `\n⚜️ <i>Powered By : SkyHub4u</i>`;
+      message += `\n⚜️ <i>Powered By : <a href="https://t.me/Tmr_Developer">SkyHub4u</a></i>`;
         }
 
     await ctx.reply(message, {
