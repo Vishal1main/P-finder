@@ -96,7 +96,7 @@ bot.command('poster', async (ctx) => {
 
     await ctx.reply(message, {
       parse_mode: 'HTML',
-      disable_web_page_preview: true
+      disable_web_page_preview: false
     });
 
   } catch (err) {
