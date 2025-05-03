@@ -91,7 +91,8 @@ bot.command('poster', async (ctx) => {
       portraitPosters.forEach((p, i) => {
         message += `${i + 1}. <a href="${base}${p.file_path}">Click Here</a>\n`;
       });
-    }
+      message += `\n⚜️ <i>Powered By : SkyHub4u</i>`;
+        }
 
     await ctx.reply(message, {
       parse_mode: 'HTML',
