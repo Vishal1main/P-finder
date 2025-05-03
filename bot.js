@@ -2,59 +2,73 @@ const { Telegraf } = require('telegraf');
 const axios = require('axios');
 const express = require('express');
 
-// ---- HARDCODED VARIABLES ----
+// Replace these with your own keys
 const BOT_TOKEN = '7524267790:AAFPFDCaTZgEZEHcaiKNxL-bEQSi43B3v_s';
 const TMDB_API_KEY = '4b6e108d2d340e1c4da27a739feaf820';
 const PORT = 3000;
-// -----------------------------
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// /start message
+// Welcome message
 bot.start((ctx) => {
   ctx.reply('Welcome to the TMDb Poster Bot!\n\nUse /poster MovieName in groups to get multiple posters.');
 });
 
-// /poster command (group only)
+// /poster command
 bot.command('poster', async (ctx) => {
   if (ctx.chat.type === 'private') {
     return ctx.reply('❌ The /poster command only works in groups.');
   }
 
-  const query = ctx.message.text.split(' ').slice(1).join(' ');
-  if (!query) return ctx.reply('Please provide a movie name. Example: /poster Jawan');
+  const queryText = ctx.message.text.split(' ').slice(1).join(' ').trim();
+  if (!queryText) return ctx.reply('Please provide a movie name. Example: /poster Jawan 2023');
+
+  // Extract title and year if provided
+  const match = queryText.match(/(.*?)(?:\s+(\d{4}))?$/);
+  const query = match[1].trim();
+  const year = match[2] || '';
 
   try {
+    // Search TMDb
     const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`;
     const searchRes = await axios.get(searchUrl);
-    const result = searchRes.data.results[0];
+    const results = searchRes.data.results || [];
 
-    if (!result) return ctx.reply('Movie/TV Show not found.');
+    // Filter valid results
+    const filtered = results.find(r => {
+      const title = r.title || r.name || '';
+      const release = r.release_date || r.first_air_date || '';
+      const resultYear = release.split('-')[0];
+      const hasImage = r.poster_path || r.backdrop_path;
+      return hasImage && (!year || resultYear === year);
+    });
 
-    const isTV = result.media_type === 'tv';
-    const title = isTV ? result.name : result.title;
-    const year = (result.first_air_date || result.release_date || '').split('-')[0];
+    if (!filtered) return ctx.reply('Movie/TV Show not found or posters unavailable.');
+
+    const isTV = filtered.media_type === 'tv';
+    const title = isTV ? filtered.name : filtered.title;
+    const resultYear = (filtered.first_air_date || filtered.release_date || '').split('-')[0];
     const tmdbType = isTV ? 'Tv' : 'Movie';
-    const genresUrl = `https://api.themoviedb.org/3/${isTV ? 'tv' : 'movie'}/${result.id}?api_key=${TMDB_API_KEY}`;
-    const genresRes = await axios.get(genresUrl);
-    const genres = genresRes.data.genres.map(g => g.name).join(', ') || 'N/A';
 
-    const imagesUrl = `https://api.themoviedb.org/3/${isTV ? 'tv' : 'movie'}/${result.id}/images?api_key=${TMDB_API_KEY}`;
-    const imagesRes = await axios.get(imagesUrl);
+    // Get genre info
+    const genreUrl = `https://api.themoviedb.org/3/${isTV ? 'tv' : 'movie'}/${filtered.id}?api_key=${TMDB_API_KEY}`;
+    const genreRes = await axios.get(genreUrl);
+    const genres = genreRes.data.genres.map(g => g.name).join(', ') || 'N/A';
 
+    // Get images
+    const imageUrl = `https://api.themoviedb.org/3/${isTV ? 'tv' : 'movie'}/${filtered.id}/images?api_key=${TMDB_API_KEY}`;
+    const imagesRes = await axios.get(imageUrl);
     const base = 'https://image.tmdb.org/t/p/original';
 
-    // Backdrops (landscape)
     const backdrops = imagesRes.data.backdrops || [];
-    const rawLandscapes = backdrops.slice(0, 5); // All languages
-    const hindiLandscapes = backdrops.filter(b => b.iso_639_1 === 'hi').slice(0, 5);
-
-    // Posters (portrait)
     const posters = imagesRes.data.posters || [];
+
+    const rawLandscapes = backdrops.slice(0, 5);
+    const hindiLandscapes = backdrops.filter(b => b.iso_639_1 === 'hi').slice(0, 5);
     const portraitPosters = posters.filter(p => p.iso_639_1 !== null).slice(0, 5);
 
     // Format HTML message
-    let message = `🎬 <b>${title}</b> (${year})\n`;
+    let message = `🎬 <b>${title}</b> (${resultYear})\n`;
     message += `🔍 <b>Type:</b> ${tmdbType}\n`;
     message += `🎭 <b>Genres:</b> ${genres}\n`;
 
@@ -84,9 +98,9 @@ bot.command('poster', async (ctx) => {
       disable_web_page_preview: true
     });
 
-  } catch (error) {
-    console.error(error.message);
-    ctx.reply('Error fetching posters.');
+  } catch (err) {
+    console.error(err.message);
+    ctx.reply('Error while fetching poster. Try again.');
   }
 });
 
@@ -94,11 +108,11 @@ bot.command('poster', async (ctx) => {
 bot.launch();
 console.log('Bot is running...');
 
-// Dummy web server for Render
+// Express server for Render
 const app = express();
 app.get('/', (req, res) => {
   res.send('TMDb Poster Bot is running.');
 });
 app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
